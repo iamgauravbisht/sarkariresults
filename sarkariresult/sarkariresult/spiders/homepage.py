@@ -10,11 +10,17 @@ class HomepageSpider(scrapy.Spider):
         box1 = response.css("div#box1")
         box2 = response.css("div#box2")
         boxs = box1 + box2
+        boxData=[]
         for box in boxs:
-            yield {
+            boxData.append(
+            {
                 "boxHeading": box.css("div#heading div a::text").get(),
                 "boxLink": box.css("div#heading div a").attrib["href"],
-            }
+            })
+        
+        # for i in range(len(boxData)):
+        #     yield boxData[i]
+        
         headlines = []
         for i in range(1, 9):
             headlines.append(
@@ -24,10 +30,27 @@ class HomepageSpider(scrapy.Spider):
                 }
             )
 
-        for i in range(len(headlines)):
-            yield headlines[i]
+        # for i in range(len(headlines)):
+        #     yield headlines[i]
+        
+        # scrap listing data from the boxs
+        for data in boxData:
+            yield response.follow(data['boxLink'], callback=self.parse_box_listed_data)
 
+        # scrap the main data from the page
         pass
+
+    def parse_box_listed_data(self, response):
+        # Extract data from listings within the box
+        listings = response.css('div#post ul li')
+        for listing in listings:
+            post_text = listing.css('a::text').get()
+            post_link = listing.css('a::attr(href)').get()
+            yield {
+                'post_text': post_text,
+                'post_link': post_link,
+            }
+        
 
 
 
@@ -49,3 +72,12 @@ class HomepageSpider(scrapy.Spider):
 # <div id="image1" align="center">
 # <a href="https://www.sarkariresult.com/railway/rrb-technician-02-2024/">RRB Technician<br>Apply Online</a>
 # </div>
+
+
+# <ul>
+#   <li>
+#       <a href="https://www.sarkariresult.com/bank/sbi-po-sep2023/" target="_blank">
+#           SBI PO 2023 Final Result 
+#       </a>  
+#   </li>
+# </ul>
