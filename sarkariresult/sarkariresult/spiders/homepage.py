@@ -11,11 +11,18 @@ class HomepageSpider(scrapy.Spider):
         for box in boxs:
             box_title = box.css("div#heading div a::text").get()
             box_link = box.css("div#heading div a").attrib["href"]
-            yield scrapy.Request(
+
+            # if (box_link=='https://www.sarkariresult.com/answerkey/'):
+            #     yield response.follow(box_link,callback=self.answerkeyParser)
+
+            if box_title=="Admission":
+                yield scrapy.Request(
                 box_link,
                 callback=self.parse_box_listed_data,
                 meta={"boxTitle": box_title,"boxLink":box_link},
             )
+
+            
         
         # headlines = []
         # for i in range(1, 9):
@@ -37,24 +44,46 @@ class HomepageSpider(scrapy.Spider):
         pass
 
     def parse_box_listed_data(self, response):
-        # Extract data from listings within the box
         box_title = response.meta["boxTitle"]
         box_link = response.meta['boxLink']
         listings = response.css('div#post ul li')
-        allPosts =[]
+
         for listing in listings:
             post_text = listing.css('a::text').get()
             post_link = listing.css('a::attr(href)').get()
-            allPosts.append(
-                [post_text,post_link]
-            )
-        yield {
-            'boxLink':box_link,
-            'boxTitle':box_title,
-            'allPosts':allPosts
-        }
-        
-
+            yield{
+                'boxLink':box_link,
+                'boxTitle':box_title,
+                'postText':post_text,
+                'postLink':post_link
+            }
+            
+    
+    def answerkeyParser(self,response):
+        listings = response.css('div#post ul')
+        for listing in listings:
+            post_text = listing.css('a::text').get()
+            post_link = listing.css('a::attr(href)').get()
+           
+            yield{
+                'boxLink':'https://www.sarkariresult.com/answerkey/',
+                'boxTitle':'Answer Key',
+                'postText':post_text,
+                'postLink':post_link
+                }
+    
+            
+            
+          
+# boxHeading,boxLink
+# Result,https://www.sarkariresult.com/result/
+# Answer Key,https://www.sarkariresult.com/answerkey/
+# Certificate Verification,https://www.sarkariresult.com/verification/
+# Admit Card,https://www.sarkariresult.com/admitcard/
+# Syllabus,https://www.sarkariresult.com/syllabus/
+# Important,https://www.sarkariresult.com/important/
+# Latest Jobs,https://www.sarkariresult.com/latestjob/
+# Admission,https://www.sarkariresult.com/admission/
 
 
 # how to get box name and the heading and post
