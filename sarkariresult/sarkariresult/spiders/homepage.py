@@ -15,6 +15,7 @@ class HomepageSpider(scrapy.Spider):
             # if (box_link=='https://www.sarkariresult.com/answerkey/'):
             #     yield response.follow(box_link,callback=self.answerkeyParser)
 
+            # Result, Certificate Verification, Admit Card, Syllabus, Important, Latest Jobs, Admission
             if box_title=="Admission":
                 yield scrapy.Request(
                 box_link,
@@ -22,8 +23,6 @@ class HomepageSpider(scrapy.Spider):
                 meta={"boxTitle": box_title,"boxLink":box_link},
             )
 
-            
-        
         # headlines = []
         # for i in range(1, 9):
         #     headlines.append(
@@ -35,12 +34,6 @@ class HomepageSpider(scrapy.Spider):
 
         # for i in range(len(headlines)):
         #     yield headlines[i]
-        
-        # scrap listing data from the boxs
-        # for data in boxData:
-        #     yield response.follow(data['boxLink'], callback=self.parse_box_listed_data)
-
-        # scrap the main data from the page
         pass
 
     def parse_box_listed_data(self, response):
