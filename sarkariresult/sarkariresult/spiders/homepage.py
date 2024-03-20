@@ -7,49 +7,52 @@ class HomepageSpider(scrapy.Spider):
     start_urls = ["https://www.sarkariresult.com"]
 
     def parse(self, response):
-        box1 = response.css("div#box1")
-        box2 = response.css("div#box2")
-        boxs = box1 + box2
-        boxData=[]
+        boxs=response.css("div#box1 , div#box2")
         for box in boxs:
-            boxData.append(
-            {
-                "boxHeading": box.css("div#heading div a::text").get(),
-                "boxLink": box.css("div#heading div a").attrib["href"],
-            })
-        
-        # for i in range(len(boxData)):
-        #     yield boxData[i]
-        
-        headlines = []
-        for i in range(1, 9):
-            headlines.append(
-                {
-                    "headline": response.css(f"div#image{i} a::text").get(),
-                    "headlineLink": response.css(f"div#image{i} a").attrib["href"],
-                }
+            box_title = box.css("div#heading div a::text").get()
+            box_link = box.css("div#heading div a").attrib["href"]
+            yield scrapy.Request(
+                box_link,
+                callback=self.parse_box_listed_data,
+                meta={"boxTitle": box_title,"boxLink":box_link},
             )
+        
+        # headlines = []
+        # for i in range(1, 9):
+        #     headlines.append(
+        #         {
+        #             "headline": response.css(f"div#image{i} a::text").get(),
+        #             "headlineLink": response.css(f"div#image{i} a").attrib["href"],
+        #         }
+        #     )
 
         # for i in range(len(headlines)):
         #     yield headlines[i]
         
         # scrap listing data from the boxs
-        for data in boxData:
-            yield response.follow(data['boxLink'], callback=self.parse_box_listed_data)
+        # for data in boxData:
+        #     yield response.follow(data['boxLink'], callback=self.parse_box_listed_data)
 
         # scrap the main data from the page
         pass
 
     def parse_box_listed_data(self, response):
         # Extract data from listings within the box
+        box_title = response.meta["boxTitle"]
+        box_link = response.meta['boxLink']
         listings = response.css('div#post ul li')
+        allPosts =[]
         for listing in listings:
             post_text = listing.css('a::text').get()
             post_link = listing.css('a::attr(href)').get()
-            yield {
-                'post_text': post_text,
-                'post_link': post_link,
-            }
+            allPosts.append(
+                [post_text,post_link]
+            )
+        yield {
+            'boxLink':box_link,
+            'boxTitle':box_title,
+            'allPosts':allPosts
+        }
         
 
 
