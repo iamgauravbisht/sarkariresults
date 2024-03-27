@@ -1,39 +1,38 @@
 import scrapy
-
+from sarkariresult.items import BoxItem
+from sarkariresult.items import pageItem
 
 class HomepageSpider(scrapy.Spider):
     name = "homepage"
     allowed_domains = ["www.sarkariresult.com"]
     start_urls = ["https://www.sarkariresult.com"]
 
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'sarkariresult.pipelines.BoxItemPipeline': 100,
+        }
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.visited_links = set()
+    
     def parse(self, response):
         boxs=response.css("div#box1 , div#box2")
         for box in boxs:
             box_title = box.css("div#heading div a::text").get()
             box_link = box.css("div#heading div a").attrib["href"]
 
-            # if (box_link=='https://www.sarkariresult.com/answerkey/'):
-            #     yield response.follow(box_link,callback=self.answerkeyParser)
-
-            # Result, Certificate Verification, Admit Card, Syllabus, Important, Latest Jobs, Admission
-            if box_title=="Admission":
-                yield scrapy.Request(
+            if (box_link=='https://www.sarkariresult.com/answerkey/'):
+                yield response.follow(box_link,callback=self.answerkeyParser)
+            else:
+                yield response.follow(
                 box_link,
                 callback=self.parse_box_listed_data,
                 meta={"boxTitle": box_title,"boxLink":box_link},
-            )
+                )
 
-        # headlines = []
-        # for i in range(1, 9):
-        #     headlines.append(
-        #         {
-        #             "headline": response.css(f"div#image{i} a::text").get(),
-        #             "headlineLink": response.css(f"div#image{i} a").attrib["href"],
-        #         }
-        #     )
-
-        # for i in range(len(headlines)):
-        #     yield headlines[i]
+        # Result, Certificate Verification, Admit Card, Syllabus, Important, Latest Jobs, Admission
         pass
 
     def parse_box_listed_data(self, response):
@@ -41,32 +40,130 @@ class HomepageSpider(scrapy.Spider):
         box_link = response.meta['boxLink']
         listings = response.css('div#post ul li')
 
+        box_item = BoxItem()
+
         for listing in listings:
             post_text = listing.css('a::text').get()
             post_link = listing.css('a::attr(href)').get()
-            yield{
-                'boxLink':box_link,
-                'boxTitle':box_title,
-                'postText':post_text,
-                'postLink':post_link
-            }
-            
-    
+            box_item['boxLink']=box_link
+            box_item['boxTitle']=box_title
+            box_item['postText']=post_text
+            box_item['postLink']=post_link
+
+            if post_link not in self.visited_links:                
+                self.visited_links.add(post_link)
+                # print("before calling the parse_page")
+                yield response.follow(post_link,callback=self.parsePage)
+                # yield response.follow(post_link,callback=self.parsePage,meta={"box_item": box_item})
+                # print("after calling the parse_page")
+            self.logger.info("final calling the box_item")
+            yield box_item    
+
     def answerkeyParser(self,response):
         listings = response.css('div#post ul')
+        box_item = BoxItem()
+
         for listing in listings:
             post_text = listing.css('a::text').get()
             post_link = listing.css('a::attr(href)').get()
-           
-            yield{
-                'boxLink':'https://www.sarkariresult.com/answerkey/',
-                'boxTitle':'Answer Key',
-                'postText':post_text,
-                'postLink':post_link
-                }
+            box_item['boxLink']='https://www.sarkariresult.com/answerkey/'
+            box_item['boxTitle']='Answer Key'
+            box_item['postText']=post_text
+            box_item['postLink']=post_link
+
+            if post_link not in self.visited_links:                
+                self.visited_links.add(post_link)
+                # print("before calling the parse_page")
+                # self.logger.info("before calling the parse_page")
+                yield response.follow(post_link,callback=self.parsePage)
+                # yield response.follow(post_link,callback=self.parsePage,meta={"box_item": box_item})
+                # self.logger.info("after calling the parse_page")
+                # self.logger.info(post_link)
+                print("after calling the parse_page")
+            self.logger.info("final calling the box_item")
+            yield box_item
+
+    def parsePage(self,response):
+        # box_item = response.meta['box_item']
+        page_item=pageItem()
+
+        page_item["name_of_post"] = response.xpath('/html/body/div[1]/div[1]/tr[2]/td[2]/text()').get()
+        page_item["date"] = response.xpath('/html/body/div[1]/div[1]/tr[3]/td[2]/text()').get()
+        page_item["info"] = response.xpath('/html/body/div[1]/div[1]/tr[4]/td[2]/text()').get()
+        headingOne = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[1]/td/h2[1]/span/b/text()').get()
+        headingTwo = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[1]/td/h2[2]/span/b/text()').get()
+        headingThree = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[1]/td/h2[3]/span/b/text()').get()
+        page_item["heading"] = f"{headingOne}\n{headingTwo}\n{headingThree}"
+        
+        importantDatesTitle = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[2]/td[1]/h2/span/b/text()').get()
+        importantDatesData = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[2]/td[1]//ul/li')
+
+        ApplicationFeeTitle = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[2]/td[2]/h2/span/b/text()').get()
+        ApplicationFeeData = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[2]/td[2]/ul/li')
+
+        important_date_list = [('title',importantDatesTitle)]
+        application_fee_list = [('title',ApplicationFeeTitle)]
+        tableRow=[]
+
+        tableDetails=response.xpath('/html/body/div[1]/div[1]/table/tbody/tr')
+        for index, tr_element in enumerate(tableDetails):
+            if(index==0):
+                continue
+            else:
+                # print("Index:", index)
+                tr_html = tr_element.extract()
+                tr_html_lower = tr_html.lower()
+                # print("tr_html_lower",tr_html_lower)
+                contains_sarkariresult = 'sarkariresult' in tr_html_lower or 'sarkariresults' in tr_html_lower or 'sarkari' in tr_html_lower
+                # print("Contains 'sarkariresult':", contains_sarkariresult)
+                # now put all this data into the table and just print this into the page 
+                if not contains_sarkariresult:
+                    tableRow.append(tr_html)
+
+
+        for li in importantDatesData:
+            # Extract the text content of the li element
+            li_text = li.xpath('normalize-space(.)').get()
     
+            # Check if the text contains ":"
+            if ":" in li_text:
+                # Split the text content into key and value
+                key, value = li_text.split(":", 1)
+        
+                # Strip whitespace from the key and value
+                key = key.strip()
+                value = value.strip()
+    
+                # Append the key-value pair to the list
+                important_date_list.append((key, value))
+        
+        applicationFeeDetails=''
+        for li in ApplicationFeeData:
+            # Extract the text content of the li element
+            li_text = li.xpath('normalize-space(.)').get()
+            applicationFeeDetails +=li_text.strip() +" \n "
+        # Append the fee information to the list
+        application_fee_list.append(('text',applicationFeeDetails))
+
+        # Print the list containing key-value pairs
+        # self.logger.info("Key-Value Pairs:")
+        # self.logger.info(important_date_list)
+        # self.logger.info("Application Fee:")
+        # self.logger.info(application_fee_list)
+        page_item["tableRow"]=tableRow
+        page_item["important_date_list"] = important_date_list
+        page_item["application_fee_list"] = application_fee_list
+        # self.logger.info("i am inside the pageparser")
+        # print("i am inside the page parser")
+        # box_data=self.box_data
+        yield page_item 
+        # yield {"page_item":page_item , "box_item":box_item }
+    
+
             
-            
+
+
+
           
 # boxHeading,boxLink
 # Result,https://www.sarkariresult.com/result/
@@ -78,31 +175,3 @@ class HomepageSpider(scrapy.Spider):
 # Latest Jobs,https://www.sarkariresult.com/latestjob/
 # Admission,https://www.sarkariresult.com/admission/
 
-
-# how to get box name and the heading and post
-# select them using div div#heading and div div#post selectors
-# inside div#heading there are two divs with one with headingname (anchor tag)
-# <div id="heading">
-# <div align="center">
-# <a href="https://www.sarkariresult.com/admitcard/" target="_blank">Admit Card</a>
-# </div>
-# <div style="margin-top:1380px">
-# <div id="view" align="center"><a href="https://www.sarkariresult.com/admitcard/" target="_blank">View More</a></div>
-# </div>
-# </div>
-
-# inside div#post ul li there are list of posts with anchor tag and text
-
-# getting top 8 headings
-# <div id="image1" align="center">
-# <a href="https://www.sarkariresult.com/railway/rrb-technician-02-2024/">RRB Technician<br>Apply Online</a>
-# </div>
-
-
-# <ul>
-#   <li>
-#       <a href="https://www.sarkariresult.com/bank/sbi-po-sep2023/" target="_blank">
-#           SBI PO 2023 Final Result 
-#       </a>  
-#   </li>
-# </ul>
