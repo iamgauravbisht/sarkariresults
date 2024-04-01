@@ -93,6 +93,6 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
 
 # logs the terminal 
-import logging
-LOG_FILE = 'scrapy_logs.txt'
-LOG_LEVEL = logging.DEBUG
+# import logging
+# LOG_FILE = 'scrapy_logs.txt'
+# LOG_LEVEL = logging.DEBUG

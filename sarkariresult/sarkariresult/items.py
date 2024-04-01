@@ -26,5 +26,6 @@ class pageItem(scrapy.Item):
     important_date_list=scrapy.Field()
     application_fee_list=scrapy.Field()
     tableRow=scrapy.Field()
+    post_id=scrapy.Field()
 
 

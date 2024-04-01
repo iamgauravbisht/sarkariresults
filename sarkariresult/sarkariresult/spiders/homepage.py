@@ -25,7 +25,7 @@ class HomepageSpider(scrapy.Spider):
 
             if (box_link=='https://www.sarkariresult.com/answerkey/'):
                 yield response.follow(box_link,callback=self.answerkeyParser)
-            else:
+            else: 
                 yield response.follow(
                 box_link,
                 callback=self.parse_box_listed_data,
@@ -53,7 +53,7 @@ class HomepageSpider(scrapy.Spider):
             if post_link not in self.visited_links:                
                 self.visited_links.add(post_link)
                 # print("before calling the parse_page")
-                yield response.follow(post_link,callback=self.parsePage)
+                yield response.follow(post_link,callback=self.parsePage,meta={"post_link":post_link})
                 # yield response.follow(post_link,callback=self.parsePage,meta={"box_item": box_item})
                 # print("after calling the parse_page")
             self.logger.info("final calling the box_item")
@@ -75,19 +75,19 @@ class HomepageSpider(scrapy.Spider):
                 self.visited_links.add(post_link)
                 # print("before calling the parse_page")
                 # self.logger.info("before calling the parse_page")
-                yield response.follow(post_link,callback=self.parsePage)
+                yield response.follow(post_link,callback=self.parsePage,meta={"post_link":post_link})
                 # yield response.follow(post_link,callback=self.parsePage,meta={"box_item": box_item})
                 # self.logger.info("after calling the parse_page")
-                # self.logger.info(post_link)
-                print("after calling the parse_page")
+                # print("after calling the parse_page")
             self.logger.info("final calling the box_item")
             yield box_item
 
     def parsePage(self,response):
-        # box_item = response.meta['box_item']
+        post_link = response.meta['post_link']
         page_item=pageItem()
 
-        page_item["name_of_post"] = response.xpath('/html/body/div[1]/div[1]/tr[2]/td[2]/text()').get()
+        page_item["post_id"]=post_link.split('https://www.sarkariresult.com/')[1]
+        page_item["name_of_post"] = response.xpath('/html/body/div[1]/div[1]/tr[2]/td[2]/h1/text()').get()
         page_item["date"] = response.xpath('/html/body/div[1]/div[1]/tr[3]/td[2]/text()').get()
         page_item["info"] = response.xpath('/html/body/div[1]/div[1]/tr[4]/td[2]/text()').get()
         headingOne = response.xpath('/html/body/div[1]/div[1]/table/tbody/tr[1]/td/h2[1]/span/b/text()').get()
@@ -114,14 +114,15 @@ class HomepageSpider(scrapy.Spider):
                 tr_html = tr_element.extract()
                 tr_html_lower = tr_html.lower()
                 # print("tr_html_lower",tr_html_lower)
-                contains_sarkariresult = 'sarkariresult' in tr_html_lower or 'sarkariresults' in tr_html_lower or 'sarkari' in tr_html_lower
-                # print("Contains 'sarkariresult':", contains_sarkariresult)
-                # now put all this data into the table and just print this into the page 
+                contains_sarkariresult = 'sarkari' in tr_html_lower or 'google' in tr_html_lower or 'ads' in tr_html_lower
                 if not contains_sarkariresult:
                     tableRow.append(tr_html)
+                
+                contains_syllabus = 'syllabus' in tr_html_lower
+                if contains_syllabus:
+                    tableRow.append(tr_html)
 
-
-        for li in importantDatesData:
+        for li in importantDatesData:   
             # Extract the text content of the li element
             li_text = li.xpath('normalize-space(.)').get()
     
@@ -145,19 +146,11 @@ class HomepageSpider(scrapy.Spider):
         # Append the fee information to the list
         application_fee_list.append(('text',applicationFeeDetails))
 
-        # Print the list containing key-value pairs
-        # self.logger.info("Key-Value Pairs:")
-        # self.logger.info(important_date_list)
-        # self.logger.info("Application Fee:")
-        # self.logger.info(application_fee_list)
         page_item["tableRow"]=tableRow
         page_item["important_date_list"] = important_date_list
         page_item["application_fee_list"] = application_fee_list
-        # self.logger.info("i am inside the pageparser")
-        # print("i am inside the page parser")
-        # box_data=self.box_data
+
         yield page_item 
-        # yield {"page_item":page_item , "box_item":box_item }
     
 
             
